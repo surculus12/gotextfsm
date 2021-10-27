@@ -8,6 +8,7 @@ import (
 
 type TextFSMRule struct {
 	Regex    string
+	Compiled *regexp.Regexp
 	Match    string
 	LineOp   string
 	RecordOp string
@@ -76,6 +77,7 @@ func (r *TextFSMRule) Parse(line string, lineNum int, var_map map[string]interfa
 			return err
 		}
 		r.Regex = regex
+		r.Compiled = regexp.MustCompile(regex)
 	}
 	if _, err := regexp.Compile(r.Regex); err != nil {
 		return fmt.Errorf("Line %d: Invalid regular expression '%s'. Error: '%s'", r.LineNum, r.Regex, err.Error())
