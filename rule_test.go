@@ -17,7 +17,7 @@ type ruleTestCase struct {
 func TestRuleParse(t *testing.T) {
 	for _, tc := range ruleTestCases {
 		v := TextFSMRule{}
-		err := v.Parse(tc.input, 1, nil)
+		err := v.Parse(tc.input, 1, nil, false)
 		if tc.err != nil {
 			if err == nil {
 				t.Errorf("'%s' failed. Expected error, but none found", tc.input)

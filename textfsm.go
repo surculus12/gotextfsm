@@ -14,6 +14,7 @@ type TextFSM struct {
 	Values             map[string]TextFSMValue
 	States             map[string]TextFSMState
 	line_num           int
+	RegexCache	       bool
 }
 
 // Parses the string passed, into a TextFSM structure.
@@ -191,7 +192,7 @@ func (t *TextFSMState) parseFSMRules(scanner *bufio.Scanner) (done bool, err err
 		for key, val := range t.fsm.Values {
 			varmap[key] = val.Template
 		}
-		err = rule.Parse(line, t.fsm.line_num, varmap)
+		err = rule.Parse(line, t.fsm.line_num, varmap, t.fsm.RegexCache)
 		if err != nil {
 			return false, err
 		}

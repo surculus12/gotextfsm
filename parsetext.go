@@ -96,7 +96,11 @@ func (t *ParserOutput) checkLine(line string, fsm TextFSM) error {
 		panic(fmt.Sprintf("Unknown State %s", t.cur_state_name))
 	}
 	for _, rule := range state.rules {
-		varmap := GetNamedMatches(regexp.MustCompile(rule.Regex), line)
+		compiled := rule.RegexCached
+		if compiled == nil {
+			compiled = regexp.MustCompile(rule.Regex)
+		}
+		varmap := GetNamedMatches(compiled, line)
 		if varmap != nil {
 			// fmt.Printf("Line '%s'. Regex: '%s' varmap: '%v'\n", line, rule.Regex, varmap)
 			for key, val := range varmap {

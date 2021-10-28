@@ -7,13 +7,34 @@ import (
 )
 
 type TextFSMRule struct {
-	Regex    string
-	Match    string
-	LineOp   string
-	RecordOp string
-	NewState string
-	LineNum  int
+	Regex    	string
+	RegexCached	*regexp.Regexp
+	Match    	string
+	LineOp   	string
+	RecordOp 	string
+	NewState	string
+	LineNum 	int
 }
+
+var (
+	// Implicit default is '(regexp) -> Next.NoRecord'
+	MATCH_ACTION = regexp.MustCompile(`(?P<match>.*)(\s->(?P<action>.*))`)
+	// Line operators.
+	OPER_RE = regexp.MustCompile(`(?P<ln_op>Continue|Next|Error)`)
+	// Record operators.
+	RECORD_RE = regexp.MustCompile(`(?P<rec_op>Clear|Clearall|Record|NoRecord)`)
+	// Line operator with optional record operator.
+	OPER_RECORD_RE = regexp.MustCompile(fmt.Sprintf("(%s(%s%s)?)", OPER_RE, `\.`, RECORD_RE))
+	// New State or 'Error' string.
+	NEWSTATE_RE = regexp.MustCompile(`(?P<new_state>\w+|\".*\")`)
+	// Compound operator (line and record) with optional new state.
+	ACTION_RE = regexp.MustCompile(fmt.Sprintf("^%s%s(%s%s)?$", `\s+`, OPER_RECORD_RE, `\s+`, NEWSTATE_RE))
+	// Record operator with optional new state.
+	ACTION2_RE = regexp.MustCompile(fmt.Sprintf("^%s%s(%s%s)?$", `\s+`, RECORD_RE, `\s+`, NEWSTATE_RE))
+	// Default operators with optional new state.
+	ACTION3_RE = regexp.MustCompile(fmt.Sprintf("^(%s%s)?$", `\s+`, NEWSTATE_RE))
+
+)
 
 var LINE_OPERATORS = []string{"Continue", "Next", "Error"}
 var RECORD_OPERATORS = []string{"Clear", "Clearall", "Record", "NoRecord"}
@@ -41,24 +62,8 @@ func (t *TextFSMRule) String() string {
 	}
 	return sb.String()
 }
-func (r *TextFSMRule) Parse(line string, lineNum int, var_map map[string]interface{}) error {
+func (r *TextFSMRule) Parse(line string, lineNum int, var_map map[string]interface{}, regexCache bool) error {
 	r.LineNum = lineNum
-	// Implicit default is '(regexp) -> Next.NoRecord'
-	MATCH_ACTION := regexp.MustCompile(`(?P<match>.*)(\s->(?P<action>.*))`)
-	// Line operators.
-	OPER_RE := regexp.MustCompile(`(?P<ln_op>Continue|Next|Error)`)
-	// Record operators.
-	RECORD_RE := regexp.MustCompile(`(?P<rec_op>Clear|Clearall|Record|NoRecord)`)
-	// Line operator with optional record operator.
-	OPER_RECORD_RE := regexp.MustCompile(fmt.Sprintf("(%s(%s%s)?)", OPER_RE, `\.`, RECORD_RE))
-	// New State or 'Error' string.
-	NEWSTATE_RE := regexp.MustCompile(`(?P<new_state>\w+|\".*\")`)
-	// Compound operator (line and record) with optional new state.
-	ACTION_RE := regexp.MustCompile(fmt.Sprintf("^%s%s(%s%s)?$", `\s+`, OPER_RECORD_RE, `\s+`, NEWSTATE_RE))
-	// Record operator with optional new state.
-	ACTION2_RE := regexp.MustCompile(fmt.Sprintf("^%s%s(%s%s)?$", `\s+`, RECORD_RE, `\s+`, NEWSTATE_RE))
-	// Default operators with optional new state.
-	ACTION3_RE := regexp.MustCompile(fmt.Sprintf("^(%s%s)?$", `\s+`, NEWSTATE_RE))
 	line = strings.TrimSpace(line)
 	if line == "" {
 		return fmt.Errorf("Null data in FSMRule. Line: %d", r.LineNum)
@@ -76,6 +81,9 @@ func (r *TextFSMRule) Parse(line string, lineNum int, var_map map[string]interfa
 			return err
 		}
 		r.Regex = regex
+		if regexCache {
+			r.RegexCached = regexp.MustCompile(regex)
+		}
 	}
 	if _, err := regexp.Compile(r.Regex); err != nil {
 		return fmt.Errorf("Line %d: Invalid regular expression '%s'. Error: '%s'", r.LineNum, r.Regex, err.Error())
